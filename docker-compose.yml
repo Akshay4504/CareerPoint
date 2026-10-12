@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: careerpoint
+      POSTGRES_PASSWORD: careerpoint
+      POSTGRES_DB: careerpoint
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careerpoint"]
+      interval: 5s
+      retries: 10
+  app:
+    build:
+      context: .
+      target: run
+    depends_on:
+      db: { condition: service_healthy }
+    environment: &env
+      DATABASE_URL: postgresql://careerpoint:careerpoint@db:5432/careerpoint?schema=public
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      STORAGE_DIR: /data/storage
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET (openssl rand -hex 32)}
+      SMTP_URL: ${SMTP_URL:-}
+      MAIL_FROM: ${MAIL_FROM:-CareerPoint <no-reply@localhost>}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_FALLBACK_MODEL: ${AI_FALLBACK_MODEL:-}
+      AI_USER_DAILY_LIMIT: ${AI_USER_DAILY_LIMIT:-30}
+      AI_DAILY_TOKEN_BUDGET: ${AI_DAILY_TOKEN_BUDGET:-400000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports: ["3000:3000"]
+    volumes: [files:/data/storage]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+  # Background job-intelligence worker: source discovery, fetching, normalization, dedupe, classification,
+  # matching, expiry, health checks and alerts. Scale with `docker compose up --scale worker=3`.
+  worker:
+    build:
+      context: .
+      target: worker
+    depends_on:
+      db: { condition: service_healthy }
+    environment: *env
+    restart: unless-stopped
+volumes:
+  pgdata:
+  files:

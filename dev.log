@@ -1,0 +1,18 @@
+
+> bim21x@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.8 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.23.176.1:3000
+- Environments: .env
+✓ Ready in 757ms
+✓ Running next.config.ts took 46ms
+- Experiments (use with caution):
+  · serverActions
+
+ GET / 200 in 1244ms (next.js: 244ms, proxy.ts: 302ms, application-code: 698ms)
+ GET /login 200 in 317ms (next.js: 162ms, proxy.ts: 11ms, application-code: 144ms)
+ GET /dashboard 200 in 302ms (next.js: 65ms, proxy.ts: 8ms, application-code: 228ms)
+ POST /login 200 in 758ms (next.js: 9ms, proxy.ts: 10ms, application-code: 739ms)
+  └─ ƒ loginAction(undefined, {}) in 400ms src/app/actions/auth.ts

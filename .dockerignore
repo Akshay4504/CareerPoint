@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+storage
+storage-e2e
+e2e/screenshots
+server.log
+*.tsbuildinfo
+.env
+.env.local
+coverage

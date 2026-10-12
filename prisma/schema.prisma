@@ -1,0 +1,1271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CANDIDATE
+  EMPLOYER
+  RECRUITER
+  EMPLOYER_ADMIN
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AuthTokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum Visibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum FileKind {
+  RESUME
+  PORTFOLIO_IMAGE
+  PROFILE_IMAGE
+  COMPANY_LOGO
+}
+
+enum ResumeKind {
+  UPLOADED
+  GENERATED
+  TARGETED
+}
+
+enum ImportStatus {
+  PENDING
+  APPLIED
+  DISCARDED
+}
+
+enum AiStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SourceType {
+  RSS
+  JSON
+  MANUAL
+  GREENHOUSE
+  LEVER
+  ASHBY
+  CAREER_PAGE
+}
+
+enum SourceHealth {
+  UNKNOWN
+  HEALTHY
+  DEGRADED
+  UNHEALTHY
+}
+
+enum RemoteType {
+  ONSITE
+  HYBRID
+  REMOTE
+  UNKNOWN
+}
+
+enum RawJobStatus {
+  NEW
+  PROCESSED
+  REJECTED
+  DUPLICATE
+  ERROR
+}
+
+enum QueueStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum AlertFrequency {
+  INSTANT
+  DAILY
+  WEEKLY
+}
+
+enum JobStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  INACTIVE
+  CLOSED
+  REJECTED
+}
+
+enum ApplicationStatus {
+  DISCOVERED
+  SAVED
+  PINNED
+  APPLYING
+  APPLIED
+  RECRUITER_REVIEW
+  SHORTLISTED
+  ASSESSMENT
+  INTERVIEW
+  OFFER
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum EmployerRole {
+  EMPLOYER
+  RECRUITER
+  EMPLOYER_ADMIN
+}
+
+enum PortfolioKind {
+  IMAGE
+  LINK
+}
+
+model User {
+  communityJoinRequests CommunityJoinRequest[]
+  communityMemberships  CommunityMember[]
+  communityPosts        CommunityPost[]
+  communityComments     CommunityComment[]
+  communityReports      CommunityReport[]
+  jobReports            JobReport[]
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  name                  String
+  passwordHash          String
+  role                  Role                   @default(CANDIDATE)
+  status                UserStatus             @default(ACTIVE)
+  emailVerifiedAt       DateTime?
+  lastLoginAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  sessions          Session[]
+  authTokens        AuthToken[]
+  profile           BIMProfessionalProfile?
+  files             FileAsset[]
+  savedJobs         SavedJob[]
+  pinnedJobs        PinnedJob[]
+  applications      Application[]
+  notifications     Notification[]
+  employerUsers     EmployerUser[]
+  aiSuggestions     AiSuggestion[]
+  jobAlerts         JobAlert[]
+  authoredNotes     ApplicationNote[]        @relation("NoteAuthor")
+  jobInteractions   JobInteraction[]
+  notificationPrefs NotificationPreference[]
+  auditLogs         AuditLog[]               @relation("AuditActor")
+  postedJobs        Job[]                    @relation("JobPoster")
+
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
+}
+
+model BIMProfessionalProfile {
+  shares              ProfileShare[]
+  id                  String         @id @default(cuid())
+  userId              String         @unique
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug                String         @unique
+  headline            String?
+  summary             String?
+  location            String?
+  country             String?
+  yearsExperience     Int?
+  discipline          String?
+  desiredRole         String?
+  remotePreference    String?
+  openToWork          Boolean        @default(false)
+  visibility          Visibility     @default(PRIVATE)
+  avatarFileId        String?        @unique
+  avatarFile          FileAsset?     @relation("ProfileAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  city                String?
+  currentRole         String?
+  industries          String[]
+  projectTypes        String[]
+  bimDisciplines      String[]
+  bimRoles            String[]
+  bimResponsibilities String[]
+  bimStandards        String[]
+  lodLevels           String[]
+  infoMgmtYears       Int?
+  coordinationYears   Int?
+  modelingYears       Int?
+  vdcYears            Int?
+  achievements        String[]
+  preferredRoles      String[]
+  preferredLocations  String[]
+  employmentTypes     String[]
+  minSalary           Int?
+  salaryCurrency      String?
+  availability        String?
+  privacy             Json           @default("{}")
+  publicResumeId      String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  experiences     Experience[]
+  educations      Education[]
+  skills          ProfileSkill[]
+  softwareSkills  SoftwareSkill[]
+  certifications  Certification[]
+  projects        Project[]
+  portfolioItems  PortfolioItem[]
+  resumes         Resume[]
+  jobMatches      JobMatch[]
+  views           ProfileView[]
+  contactRequests ContactRequest[]
+  languages       Language[]
+  imports         ResumeImport[]
+
+  @@index([visibility, openToWork])
+  @@index([discipline])
+}
+
+model Language {
+  id        String                 @id @default(cuid())
+  profileId String
+  profile   BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name      String
+  level     String?
+
+  @@unique([profileId, name])
+}
+
+model ResumeImport {
+  id        String                 @id @default(cuid())
+  profileId String
+  profile   BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fileId    String?
+  rawText   String
+  extracted Json
+  status    ImportStatus           @default(PENDING)
+  resumeId  String?
+  createdAt DateTime               @default(now())
+  appliedAt DateTime?
+
+  @@index([profileId, status])
+}
+
+model AiSuggestion {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String
+  targetType String
+  targetId   String?
+  input      Json
+  original   String?
+  output     String
+  flags      Json      @default("[]")
+  status     AiStatus  @default(PENDING)
+  model      String?
+  createdAt  DateTime  @default(now())
+  decidedAt  DateTime?
+
+  @@index([userId, status, createdAt])
+}
+
+model Experience {
+  id          String                 @id @default(cuid())
+  profileId   String
+  profile     BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title       String
+  company     String
+  location    String?
+  startDate   DateTime?
+  endDate     DateTime?
+  current     Boolean                @default(false)
+  description String?
+  sortOrder   Int                    @default(0)
+
+  @@index([profileId])
+}
+
+model Education {
+  id        String                 @id @default(cuid())
+  profileId String
+  profile   BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  school    String
+  degree    String?
+  field     String?
+  startYear Int?
+  endYear   Int?
+
+  @@index([profileId])
+}
+
+model Skill {
+  id       String         @id @default(cuid())
+  name     String         @unique
+  category String?
+  profiles ProfileSkill[]
+}
+
+model ProfileSkill {
+  profileId String
+  profile   BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill                  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  level     SkillLevel             @default(INTERMEDIATE)
+
+  @@id([profileId, skillId])
+  @@index([skillId])
+}
+
+model SoftwareSkill {
+  id        String                 @id @default(cuid())
+  profileId String
+  profile   BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  software  String
+  level     SkillLevel             @default(INTERMEDIATE)
+  years     Int?
+
+  @@unique([profileId, software])
+  @@index([software])
+}
+
+model Certification {
+  id            String                 @id @default(cuid())
+  profileId     String
+  profile       BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name          String
+  issuer        String?
+  issuedAt      DateTime?
+  expiresAt     DateTime?
+  credentialUrl String?
+
+  @@index([profileId])
+}
+
+model Project {
+  id               String                 @id @default(cuid())
+  profileId        String
+  profile          BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name             String
+  role             String?
+  sector           String?
+  location         String?
+  lod              String?
+  software         String[]
+  year             Int?
+  description      String?
+  client           String?
+  clientPublic     Boolean                @default(false)
+  discipline       String?
+  scale            String?
+  responsibilities String?
+  challenges       String?
+  solutions        String?
+  outcomes         String?
+  published        Boolean                @default(false)
+  createdAt        DateTime               @default(now())
+  portfolio        PortfolioItem[]
+
+  @@index([profileId])
+}
+
+model PortfolioItem {
+  id          String                 @id @default(cuid())
+  profileId   String
+  profile     BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  kind        PortfolioKind          @default(IMAGE)
+  title       String
+  description String?
+  url         String?
+  fileId      String?                @unique
+  file        FileAsset?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  sortOrder   Int                    @default(0)
+  createdAt   DateTime               @default(now())
+
+  @@index([profileId, sortOrder])
+}
+
+model FileAsset {
+  id           String     @id @default(cuid())
+  ownerId      String
+  owner        User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  kind         FileKind
+  storageKey   String     @unique
+  originalName String
+  mime         String
+  size         Int
+  sha256       String
+  visibility   Visibility @default(PRIVATE)
+  createdAt    DateTime   @default(now())
+
+  avatarFor     BIMProfessionalProfile? @relation("ProfileAvatar")
+  companyLogo   Company?                @relation("CompanyLogo")
+  portfolioItem PortfolioItem?
+  resumes       Resume[]
+
+  @@index([ownerId, kind])
+}
+
+model Resume {
+  id               String                 @id @default(cuid())
+  profileId        String
+  profile          BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title            String
+  kind             ResumeKind             @default(UPLOADED)
+  targetRole       String?
+  template         String                 @default("classic")
+  sourceFileId     String?
+  sourceFile       FileAsset?             @relation(fields: [sourceFileId], references: [id], onDelete: SetNull)
+  currentVersionId String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  versions ResumeVersion[]
+
+  @@index([profileId])
+}
+
+model ResumeVersion {
+  id        String   @id @default(cuid())
+  resumeId  String
+  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  version   Int
+  content   Json
+  rawText   String?
+  source    String
+  label     String?
+  createdAt DateTime @default(now())
+
+  scores       ResumeScore[]
+  applications Application[]
+
+  @@unique([resumeId, version])
+}
+
+model ResumeScore {
+  id              String        @id @default(cuid())
+  resumeVersionId String
+  resumeVersion   ResumeVersion @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+  total           Int
+  breakdown       Json
+  suggestions     Json
+  rubricVersion   Int
+  createdAt       DateTime      @default(now())
+
+  @@index([resumeVersionId, createdAt])
+}
+
+model Company {
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  website         String?
+  description     String?
+  location        String?
+  verified        Boolean          @default(false)
+  industry        String?
+  size            String?
+  locations       String[]
+  logoFileId      String?          @unique
+  logoFile        FileAsset?       @relation("CompanyLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
+  invites         EmployerInvite[]
+  contactRequests ContactRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  members EmployerUser[]
+  jobs    Job[]
+  views   ProfileView[]
+
+  @@index([verified])
+}
+
+model EmployerUser {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      EmployerRole @default(RECRUITER)
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model JobSource {
+  id                  String       @id @default(cuid())
+  name                String
+  type                SourceType
+  url                 String?
+  /// Connector configuration, e.g. { "board": "procore" } or { "urls": [...] }
+  config              Json         @default("{}")
+  active              Boolean      @default(true)
+  /// 0-100. How much we trust postings from this source (official > ATS > feed > aggregator).
+  reliability         Int          @default(70)
+  minIntervalMs       Int          @default(1500)
+  runEveryMinutes     Int          @default(360)
+  expireAfterDays     Int          @default(4)
+  health              SourceHealth @default(UNKNOWN)
+  consecutiveFailures Int          @default(0)
+  lastRunAt           DateTime?
+  lastSuccessAt       DateTime?
+  nextRunAt           DateTime?
+  lastStatus          String?
+  lastError           String?
+  createdAt           DateTime     @default(now())
+
+  jobs    Job[]
+  rawJobs RawJob[]
+  runs    IngestionRun[]
+  refs    JobSourceRef[]
+
+  @@index([active, nextRunAt])
+}
+
+model RawJob {
+  id          String       @id @default(cuid())
+  sourceId    String
+  source      JobSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceJobId String
+  sourceUrl   String
+  /// Original response from the source, kept separately from the normalized Job.
+  rawPayload  Json
+  hash        String
+  status      RawJobStatus @default(NEW)
+  reason      String?
+  jobId       String?
+  fetchedAt   DateTime     @default(now())
+  lastSeenAt  DateTime     @default(now())
+  processedAt DateTime?
+
+  @@unique([sourceId, sourceJobId])
+  @@index([status])
+  @@index([hash])
+}
+
+model JobSourceRef {
+  id          String    @id @default(cuid())
+  jobId       String
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  sourceId    String
+  source      JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceJobId String
+  url         String
+  active      Boolean   @default(true)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+
+  @@unique([sourceId, sourceJobId])
+  @@index([jobId])
+  @@index([sourceId, active, lastSeenAt])
+}
+
+model IngestionRun {
+  id         String    @id @default(cuid())
+  sourceId   String
+  source     JobSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String    @default("RUNNING")
+  complete   Boolean   @default(false)
+  found      Int       @default(0)
+  accepted   Int       @default(0)
+  rejected   Int       @default(0)
+  duplicates Int       @default(0)
+  updated    Int       @default(0)
+  unchanged  Int       @default(0)
+  failures   Int       @default(0)
+  durationMs Int?
+  error      String?
+
+  logs IngestionLog[]
+
+  @@index([sourceId, startedAt])
+}
+
+model IngestionLog {
+  id        String        @id @default(cuid())
+  runId     String?
+  run       IngestionRun? @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sourceId  String
+  level     String
+  message   String
+  meta      Json?
+  createdAt DateTime      @default(now())
+
+  @@index([sourceId, createdAt])
+}
+
+model QueueJob {
+  id          String      @id @default(cuid())
+  queue       String
+  payload     Json
+  status      QueueStatus @default(PENDING)
+  attempts    Int         @default(0)
+  maxAttempts Int         @default(5)
+  runAt       DateTime    @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?
+  error       String?
+  dedupeKey   String?     @unique
+  createdAt   DateTime    @default(now())
+  finishedAt  DateTime?
+
+  @@index([status, runAt])
+  @@index([queue, status])
+}
+
+model JobAlert {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  criteria       Json
+  frequency      AlertFrequency @default(DAILY)
+  channels       String[]
+  active         Boolean        @default(true)
+  lastRunAt      DateTime?
+  lastNotifiedAt DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@index([active, frequency])
+  @@index([userId])
+}
+
+model Job {
+  reports              JobReport[]
+  id                   String                   @id @default(cuid())
+  slug                 String                   @unique
+  title                String
+  companyId            String?
+  company              Company?                 @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyName          String
+  sourceId             String?
+  source               JobSource?               @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  externalId           String?
+  sourceJobId          String?
+  canonicalUrl         String?
+  /// When this opening was merged into another job, points to the canonical one. Merged rows are never listed.
+  canonicalJobId       String?
+  responsibilities     String?
+  requirements         String?
+  city                 String?
+  remoteType           RemoteType               @default(UNKNOWN)
+  experienceMin        Int?
+  experienceMax        Int?
+  industry             String?
+  bimRole              String?
+  bimRelevanceScore    Int                      @default(0)
+  qualityScore         Int                      @default(0)
+  qualityBreakdown     Json?
+  duplicateProbability Float                    @default(0)
+  companyKey           String?
+  titleKey             String?
+  discoveredAt         DateTime                 @default(now())
+  search               Unsupported("tsvector")?
+  lastSeenAt           DateTime                 @default(now())
+  postedByUserId       String?
+  postedBy             User?                    @relation("JobPoster", fields: [postedByUserId], references: [id], onDelete: SetNull)
+  applyUrl             String?
+  location             String?
+  country              String?
+  remote               Boolean                  @default(false)
+  employmentType       String?
+  seniority            String?
+  discipline           String?
+  description          String
+  software             String[]
+  skills               String[]
+  salaryMin            Int?
+  salaryMax            Int?
+  salaryCurrency       String?
+  status               JobStatus                @default(PENDING)
+  postedAt             DateTime                 @default(now())
+  expiresAt            DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  refs         JobSourceRef[]
+  interactions JobInteraction[]
+  saved        SavedJob[]
+  pinned       PinnedJob[]
+  matches      JobMatch[]
+  applications Application[]
+
+  @@unique([sourceId, externalId])
+  @@index([status, postedAt])
+  @@index([status, discoveredAt])
+  @@index([status, bimRelevanceScore])
+  @@index([country, city])
+  @@index([bimRole])
+  @@index([remoteType])
+  @@index([companyKey, titleKey])
+  @@index([canonicalJobId])
+  @@index([canonicalUrl])
+  @@index([search], type: Gin)
+  @@index([software], type: Gin)
+  @@index([skills], type: Gin)
+  @@index([companyId])
+  @@index([discipline])
+}
+
+model SavedJob {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, jobId])
+  @@index([jobId])
+}
+
+model PinnedJob {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, jobId])
+  @@index([jobId])
+}
+
+model JobMatch {
+  profileId  String
+  profile    BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jobId      String
+  job        Job                    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  score      Int
+  reasons    Json
+  computedAt DateTime               @default(now())
+
+  @@id([profileId, jobId])
+  @@index([profileId, score])
+  @@index([jobId])
+}
+
+model Application {
+  id                  String            @id @default(cuid())
+  userId              String
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId               String
+  job                 Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resumeVersionId     String?
+  resumeVersion       ResumeVersion?    @relation(fields: [resumeVersionId], references: [id], onDelete: SetNull)
+  coverNote           String?
+  external            Boolean           @default(false)
+  status              ApplicationStatus @default(APPLIED)
+  origin              String?
+  sourceLabel         String?
+  applyClickedAt      DateTime?
+  appliedAt           DateTime?
+  viewedByEmployerAt  DateTime?
+  portfolioProjectIds String[]
+  portfolioItemIds    String[]
+  lastActivityAt      DateTime          @default(now())
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  events     ApplicationEvent[]
+  notes      ApplicationNote[]
+  interviews Interview[]
+  messages   ApplicationMessage[]
+
+  @@unique([userId, jobId])
+  @@index([jobId, status])
+  @@index([userId, status])
+  @@index([userId, lastActivityAt])
+  @@index([status, lastActivityAt])
+}
+
+model ApplicationNote {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  authorId      String?
+  author        User?       @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  body          String
+  createdAt     DateTime    @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model Interview {
+  id                 String      @id @default(cuid())
+  applicationId      String
+  application        Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  scheduledAt        DateTime
+  durationMin        Int         @default(45)
+  mode               String      @default("VIDEO")
+  locationOrLink     String?
+  messageToCandidate String?
+  status             String      @default("SCHEDULED")
+  candidateResponse  String?
+  respondedAt        DateTime?
+  createdById        String?
+  createdAt          DateTime    @default(now())
+
+  @@index([applicationId])
+  @@index([scheduledAt, status])
+}
+
+model ApplicationMessage {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  senderId      String?
+  senderRole    String
+  body          String
+  createdAt     DateTime    @default(now())
+  readAt        DateTime?
+
+  @@index([applicationId, createdAt])
+}
+
+model JobInteraction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  type      String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, jobId, createdAt])
+  @@index([jobId, type])
+}
+
+model ContactRequest {
+  id          String                 @id @default(cuid())
+  companyId   String
+  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  senderId    String?
+  profileId   String
+  profile     BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jobId       String?
+  message     String
+  status      String                 @default("PENDING")
+  respondedAt DateTime?
+  createdAt   DateTime               @default(now())
+
+  @@index([profileId, status])
+  @@index([companyId, createdAt])
+}
+
+model EmployerInvite {
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email       String
+  role        EmployerRole @default(RECRUITER)
+  tokenHash   String       @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String?
+  createdAt   DateTime     @default(now())
+
+  @@index([companyId])
+  @@index([email])
+}
+
+model NotificationPreference {
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event  String
+  inApp  Boolean @default(true)
+  email  Boolean @default(true)
+
+  @@id([userId, event])
+}
+
+model EmailOutbox {
+  id        String    @id @default(cuid())
+  userId    String?
+  toEmail   String
+  subject   String
+  body      String
+  event     String
+  status    String    @default("PENDING")
+  attempts  Int       @default(0)
+  error     String?
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([status, createdAt])
+}
+
+model ApplicationEvent {
+  id                 String             @id @default(cuid())
+  applicationId      String
+  application        Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  actorId            String?
+  actorRole          String?
+  type               String
+  fromStatus         ApplicationStatus?
+  toStatus           ApplicationStatus?
+  note               String?
+  visibleToCandidate Boolean            @default(true)
+  meta               Json?
+  createdAt          DateTime           @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+model ProfileView {
+  id              String                 @id @default(cuid())
+  profileId       String
+  profile         BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  viewerUserId    String?
+  viewerCompanyId String?
+  viewerCompany   Company?               @relation(fields: [viewerCompanyId], references: [id], onDelete: SetNull)
+  kind            String                 @default("PROFILE")
+  meta            Json?
+  createdAt       DateTime               @default(now())
+
+  @@index([profileId, createdAt])
+  @@index([profileId, kind, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?
+  entityId   String?
+  meta       Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+/// Every AI call (success or failure): powers per-user limits, global cost protection and the admin usage view.
+model AiUsage {
+  id           String   @id @default(cuid())
+  userId       String?
+  kind         String
+  model        String?
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  status       String
+  error        String?
+  durationMs   Int?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+/// Admin-editable resume scoring weights. Append-only: the highest version is live, older rows are the audit history.
+model ScoringConfigVersion {
+  id          String   @id @default(cuid())
+  version     Int      @unique
+  weights     Json
+  /// Per-role overrides of the expert-curated benchmark numbers: { [roleId]: { expectedQuantified, expectedProjects, expectedCertifications, typicalYears } }
+  benchmark   Json?
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+}
+
+/// Liveness beacons written by long-running processes (the worker) and read by the health check.
+model Heartbeat {
+  name       String   @id
+  lastBeatAt DateTime @default(now())
+  meta       Json?
+}
+
+/// A candidate's report about a job posting (scam, expired, not BIM, misleading…). Triaged by moderators.
+model JobReport {
+  id          String          @id @default(cuid())
+  jobId       String
+  job         Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason      String
+  details     String?
+  status      JobReportStatus @default(OPEN)
+  handledById String?
+  handledAt   DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@unique([userId, jobId])
+  @@index([status, createdAt])
+  @@index([jobId])
+}
+
+enum JobReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+/// Shared fixed-window rate limiter state (works across app replicas, unlike process memory).
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+
+  @@index([windowStart])
+}
+
+// ---- Communities: structured discussion spaces (discipline, technology, region, professional level) ------------------
+
+enum CommunityCategory {
+  DISCIPLINE
+  TECHNOLOGY
+  REGION
+  LEVEL
+}
+
+enum PostKind {
+  DISCUSSION
+  QUESTION
+  SHOWCASE
+}
+
+model Community {
+  joinRequests CommunityJoinRequest[]
+  invites      CommunityInvite[]
+  id           String                 @id @default(cuid())
+  slug         String                 @unique
+  name         String
+  category     CommunityCategory
+  description  String
+  sortOrder    Int                    @default(0)
+  createdAt    DateTime               @default(now())
+
+  members CommunityMember[]
+  posts   CommunityPost[]
+
+  @@index([category, sortOrder])
+}
+
+model CommunityMember {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt    DateTime  @default(now())
+
+  @@unique([communityId, userId])
+  @@index([userId])
+}
+
+model CommunityPost {
+  id             String             @id @default(cuid())
+  communityId    String
+  community      Community          @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User               @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  kind           PostKind           @default(DISCUSSION)
+  title          String
+  body           String
+  hidden         Boolean            @default(false)
+  hiddenById     String?
+  commentCount   Int                @default(0)
+  lastActivityAt DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  comments       CommunityComment[]
+  reports        CommunityReport[]
+
+  @@index([communityId, hidden, lastActivityAt])
+  @@index([authorId])
+}
+
+model CommunityComment {
+  id        String        @id @default(cuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  hidden    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+}
+
+model CommunityReport {
+  id          String          @id @default(cuid())
+  postId      String
+  post        CommunityPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason      String
+  status      JobReportStatus @default(OPEN)
+  handledById String?
+  handledAt   DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@unique([userId, postId])
+  @@index([status, createdAt])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+/// Joining is never instant: a member asks, and a moderator approves (or the person arrives through an invite link).
+model CommunityJoinRequest {
+  id          String        @id @default(cuid())
+  communityId String
+  community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message     String?
+  status      RequestStatus @default(PENDING)
+  handledById String?
+  handledAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@unique([communityId, userId])
+  @@index([status, createdAt])
+}
+
+/// Invitation link created by a member. Anyone holding it must verify an email address before they can join.
+model CommunityInvite {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdById String
+  tokenHash   String    @unique
+  maxUses     Int       @default(20)
+  uses        Int       @default(0)
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([communityId])
+  @@index([createdById])
+}
+
+/// One-time email codes that prove control of an address (community invites, private profile shares).
+model EmailChallenge {
+  id         String    @id @default(cuid())
+  purpose    String
+  subjectId  String
+  email      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([purpose, subjectId, email])
+  @@index([expiresAt])
+}
+
+/// Share link for a profile. Only needed for PRIVATE profiles: the receiver must verify their email before viewing.
+model ProfileShare {
+  id             String                 @id @default(cuid())
+  profileId      String
+  profile        BIMProfessionalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tokenHash      String                 @unique
+  /// When set, only this address can pass the checkpoint.
+  recipientEmail String?
+  label          String?
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  viewCount      Int                    @default(0)
+  createdAt      DateTime               @default(now())
+  accesses       ProfileShareAccess[]
+
+  @@index([profileId])
+}
+
+model ProfileShareAccess {
+  id        String       @id @default(cuid())
+  shareId   String
+  share     ProfileShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  email     String
+  createdAt DateTime     @default(now())
+
+  @@index([shareId, createdAt])
+}
+
+model RoleTemplate {
+  id              String   @id @default(cuid())
+  roleName        String   @unique
+  description     String?
+  keywords        String[]
+  skills          String[]
+  bulletTemplates Json     @default("[]")
+  formatRules     Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([roleName])
+}

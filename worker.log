@@ -1,0 +1,21 @@
+
+> bim21x@0.1.0 worker
+> cross-env NODE_OPTIONS=--conditions=react-server tsx scripts/worker.ts
+
+{"ts":"2026-10-04T07:43:56.263Z","level":"info","event":"worker.started","workerId":"Tushar:2540","once":false}
+{"ts":"2026-10-04T07:43:56.389Z","level":"info","event":"queue.task","queue":"maintenance.expire","taskId":"cmutilimj0000ipykz0m17xzw","attempt":1,"durationMs":65,"outcome":"done"}
+{"ts":"2026-10-04T07:43:56.395Z","level":"info","event":"queue.task","queue":"alerts.run","taskId":"cmutilimp0001ipykxm7kctf9","attempt":1,"durationMs":6,"outcome":"done"}
+[mail:dev] to=employer@bim21x.local subject="New application: Senior BIM Coordinator MEP 1791099575052"
+Arjun Mehta applied.
+
+http://localhost:3100/employer/applications/cmutihirt0045ipmc0tdnp0li
+
+Change what we email you: http://localhost:3100/settings
+
+{"ts":"2026-10-04T07:43:56.405Z","level":"info","event":"queue.task","queue":"email.send","taskId":"cmutihisf004dipmcv1egra38","attempt":1,"durationMs":10,"outcome":"done"}
+[mail:dev] to=employer@bim21x.local subject="Interview confirmed: Senior BIM Coordinator MEP 1791099575052"
+http://localhost:3100/employer/applications/cmutihirt0045ipmc0tdnp0li
+
+Change what we email you: http://localhost:3100/settings
+
+{"ts":"2026-10-04T07:43:56.411Z","level":"info","event":"queue.task","queue":"email.send","taskId":"cmutihwti006cipmcic197wzh","attempt":1,"durationMs":6,"outcome":"done"}
